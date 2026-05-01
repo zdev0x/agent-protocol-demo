@@ -1,0 +1,11 @@
+# Agent Protocol Demo - 依赖列表
+# 安装: pip install -r requirements.txt
+
+# 核心依赖
+websockets>=16.0
+
+# 开发依赖 (可选)
+# pytest>=7.0          # 测试框架
+# pytest-asyncio>=0.21 # 异步测试支持
+# black>=23.0          # 代码格式化
+# flake8>=6.0          # 代码检查
