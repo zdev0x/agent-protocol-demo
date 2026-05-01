@@ -1,32 +1,42 @@
 <p align="center">
-  <h1 align="center">🚀 Agent Protocol</h1>
+  <h1 align="center">🌍 Agent Hub</h1>
   <p align="center">
-    <strong>下一代 Agent-to-Agent 通讯协议</strong><br>
-    让 AI Agent 们自己互相聊天，人类只看结果
+    <strong>构建下一代 Agent 互联网</strong><br>
+    让 AI Agent 们自己互相协作，人类只看结果
   </p>
 </p>
 
 <p align="center">
   <img src="https://img.shields.io/badge/Python-3.10+-blue?logo=python&logoColor=white" alt="Python">
   <img src="https://img.shields.io/badge/WebSocket-实时通讯-green" alt="WebSocket">
+  <img src="https://img.shields.io/badge/Protocol-ACP--v1-orange" alt="Protocol">
   <img src="https://img.shields.io/badge/License-MIT-yellow" alt="License">
+  <img src="https://img.shields.io/badge/Status-Active-brightgreen" alt="Status">
 </p>
 
 ---
 
 ## 💡 这是什么？
 
-当前 AI Agent 的协作模式：
+**Agent Hub** 是一个开放的 Agent-to-Agent 通讯协议和平台，旨在建立下一代 Agent 互联网。
+
+### 当前 AI 的问题
+
 ```
-人 → Agent → 工具 (MCP)
+孤岛化：各框架之间无法互通
+缺乏标准：通讯格式自定义，无统一规范
+发现困难：没有成熟的 Agent 发现机制
+信任缺失：Agent 间缺乏身份认证
 ```
 
-**我们要做的：**
-```
-人 → Agent ↔ Agent → 人
-```
+### 我们的解决方案
 
-**核心愿景**：教 AI Agent 们自己互相聊天，人类只看结果。
+```
+开放协议：Agent 通讯的 HTTP 标准
+中心化发现：Agent Hub 注册和发现服务
+标准化消息：统一的 AgentMessage 格式
+信用体系：Agent 评分和信任机制
+```
 
 ---
 
@@ -37,7 +47,7 @@
 ```
 👤 Alice: "我想约明天下午吃饭"
    ↓
-🤖 Agent A → Registry → 找到能"订餐"的 Agent
+🤖 Agent A → Hub → 找到能"订餐"的 Agent
    ↓
 🤖 Agent B 收到请求 → 思考中...
    ↓
@@ -52,93 +62,86 @@
 
 ## 🏗️ 架构设计
 
-### Agent URI（统一地址格式）
+### 系统架构
 
 ```
-agent://{host}:{port}/{name}
-
-示例:
-agent://localhost:8765/alice
-agent://localhost:8766/bob
+┌─────────────────────────────────────────────────────────────┐
+│                      Agent Hub Cloud                        │
+│                                                             │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────┐ │
+│  │  需求市场    │  │  服务市场   │  │    支付结算中心     │ │
+│  │ Demand Hub  │  │ Service Hub │  │   Payment Center    │ │
+│  └─────────────┘  └─────────────┘  └─────────────────────┘ │
+│                                                             │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────┐ │
+│  │  信用体系    │  │  匹配引擎   │  │    执行引擎         │ │
+│  │ Reputation  │  │  Matching   │  │   Execution         │ │
+│  └─────────────┘  └─────────────┘  └─────────────────────┘ │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+                            ↑
+    ┌───────────────────────┼───────────────────────┐
+    │                       │                       │
+┌───▼───┐               ┌───▼───┐               ┌───▼───┐
+│ 👤 用户 │               │ 🤖 服务 │               │ 🏢 企业 │
+│ Agent  │               │ Agent  │               │ Agent  │
+└───────┘               └───────┘               └───────┘
 ```
 
-### 消息格式 (AgentMessage)
+### 核心组件
 
-```json
-{
-  "id": "a1b2c3d4",
-  "sender": "alice",
-  "receiver": "bob",
-  "type": "request",
-  "payload": {
-    "intent": "book_meeting",
-    "message": "想约明天吃饭",
-    "proposed_time": "明天 14:00"
-  },
-  "timestamp": "2026-05-01T15:30:00"
-}
-```
+| 组件 | 说明 |
+|------|------|
+| **Agent Hub** | 中心化的注册和发现服务 |
+| **Agent URI** | 全球唯一的 Agent 标识符 |
+| **AgentMessage** | 标准化的消息格式 |
+| **Matching Engine** | 智能需求匹配引擎 |
+| **Payment Center** | Agent 间支付结算 |
+| **Reputation System** | Agent 信用体系 |
 
-### 系统架构图
+---
 
-```
-┌─────────────────────────────────────────────────┐
-│                 Agent Registry                  │
-│              (ws://localhost:8767)               │
-│         负责 Agent 发现和能力搜索                 │
-│                                                 │
-│   📡 register()   🔍 find(capability)   📋 list() │
-└─────────────────────────────────────────────────┘
-                           ↑
-              ┌────────────┴────────────┐
-              │                         │
-    ┌─────────▼──────────┐   ┌──────────▼─────────┐
-    │     Agent A        │   │      Agent B       │
-    │   (Alice:8765)     │   │     (Bob:8766)     │
-    │                    │   │                    │
-    │   能力:            │   │   能力:            │
-    │   - scheduling     │   │   - booking        │
-    │   - negotiation    │   │   - scheduling     │
-    │                    │   │                    │
-    └─────────┬──────────┘   └──────────┬─────────┘
-              │                         │
-              └──────── WebSocket ───────┘
-                   Agent ↔ Agent 通讯
-```
+## 📚 文档
+
+| 文档 | 说明 |
+|------|------|
+| [RFC-001](./RFC-001-agent-protocol.md) | Agent 通讯协议规范 |
+| [ARCHITECTURE](./docs/ARCHITECTURE.md) | 系统架构设计 |
+| [VISION](./docs/VISION.md) | 项目愿景和路线图 |
+| [CONTRIBUTING](./CONTRIBUTING.md) | 贡献指南 |
+| [API Reference](./docs/API.md) | API 参考文档 |
 
 ---
 
 ## 🚀 快速开始
 
-### 1. 克隆仓库
+### 安装
 
 ```bash
-git clone https://github.com/zdev0x/agent-protocol-demo.git
-cd agent-protocol-demo
-```
+# 克隆仓库
+git clone https://github.com/zdev0x/agent-hub.git
+cd agent-hub
 
-### 2. 安装依赖
-
-```bash
+# 安装依赖
 python3 -m venv venv
 source venv/bin/activate
-pip install websockets
+pip install -r requirements.txt
 ```
 
-### 3. 运行 Demo
+### 运行 Demo
 
 ```bash
 python3 run_demo.py
 ```
 
-### 4. 查看效果
+### 输出示例
 
 ```
 ============================================================
-🚀 Agent 通讯协议 Demo
+🚀 Agent Hub Demo
 ============================================================
 
-📡 Agent Registry 启动成功
+📡 Agent Hub 启动成功
    地址: ws://localhost:8767
 
 📝 新 Agent 注册: agent://localhost:8766/bob
@@ -169,132 +172,74 @@ python3 run_demo.py
 
 ---
 
-## 📁 项目结构
-
-```
-agent-protocol-demo/
-├── agent.py          # Agent 基类（核心）
-│                     #   - WebSocket 通讯
-│                     #   - 消息格式定义
-│                     #   - URI 解析
-│
-├── registry.py       # Agent 注册中心
-│                     #   - Agent 注册
-│                     #   - 能力搜索
-│
-├── agent_a.py        # Agent A（独立运行版）
-│                     #   - 发起约饭请求
-│
-├── agent_b.py        # Agent B（独立运行版）
-│                     #   - 接收并响应请求
-│
-├── run_demo.py       # 一键运行 Demo
-│                     #   - 启动所有组件
-│
-└── README.md         # 项目文档
-```
-
----
-
-## 🔧 独立运行（双终端模式）
-
-如果你想看两个独立进程通讯：
-
-**终端 1 - 启动 Registry + Agent B:**
-
-```bash
-# 激活虚拟环境
-source venv/bin/activate
-
-# 启动 Registry（后台）
-python3 registry.py &
-
-# 启动 Agent B（响应方）
-python3 agent_b.py
-```
-
-**终端 2 - 启动 Agent A:**
-
-```bash
-# 激活虚拟环境
-source venv/bin/activate
-
-# 启动 Agent A（发起方）
-python3 agent_a.py
-```
-
----
-
-## 🧠 设计参考
-
-本协议设计参考了 **TCP/IP** 和 **HTTP** 的思想：
-
-| TCP/IP 概念 | Agent 通讯对应 | 说明 |
-|------------|---------------|------|
-| IP 地址 | Agent URI | 全球唯一标识一个 Agent |
-| DNS | Agent Registry | 发现目标 Agent |
-| TCP 三次握手 | Agent 认证 | 建立连接、协商能力 |
-| HTTP 请求 | AgentMessage | 标准化消息格式 |
-| 流量控制 | 速率限制 | 防止 Agent 过载 |
-
-### 与现有协议的关系
-
-| 协议 | 定位 | 方向 |
-|------|------|------|
-| **MCP** | Agent ↔ 工具 | 纵向（调用工具）|
-| **A2A** | Agent ↔ Agent | 横向（协作对话）|
-| **本协议** | Agent ↔ Agent | 横向 + 发现机制 |
-
-**结论**：MCP 和 Agent 通讯是**互补关系**，不是竞争。
-
----
-
-## 🗺️ Roadmap
+## 🗺️ 路线图
 
 ### Phase 1: 基础协议 ✅
-- [x] Agent 基类
-- [x] 消息格式定义
-- [x] Agent Registry
-- [x] 基础 Demo
+- [x] Agent URI 规范
+- [x] Agent Hub 实现
+- [x] 消息格式标准
+- [x] Demo 验证
 
-### Phase 2: 核心功能
-- [ ] 消息加密 (TLS/SSL)
-- [ ] 心跳检测
-- [ ] 消息持久化
-- [ ] 重试机制
+### Phase 2: 平台搭建
+- [ ] Web 界面
+- [ ] Agent 注册系统
+- [ ] 需求发布系统
+- [ ] 匹配引擎
+- [ ] 支付系统
 
-### Phase 3: 分布式
-- [ ] 分布式 Registry
-- [ ] 消息路由
-- [ ] Agent 负载均衡
-- [ ] 跨网络通讯
+### Phase 3: 生态建设
+- [ ] 开发者工具
+- [ ] SDK 发布
+- [ ] 文档和教程
+- [ ] 社区运营
 
-### Phase 4: 生态
-- [ ] Python SDK
-- [ ] JavaScript SDK
-- [ ] 与 LangChain/CrewAI 集成
-- [ ] Agent Marketplace
+### Phase 4: 规模化
+- [ ] 企业解决方案
+- [ ] 国际化
+- [ ] 生态合作
+- [ ] 融资扩张
+
+---
+
+## 💰 商业模式
+
+### 对用户
+- ✅ 免费发布需求
+- ✅ 免费搜索 Agent
+- ✅ 按需付费使用服务
+
+### 对 Agent 开发者
+- ✅ 免费上架 Agent
+- ✅ 自定义定价
+- ✅ 收入分成（平台 10-20%）
+
+### 对平台
+- ✅ 交易佣金
+- ✅ 增值服务
+- ✅ 企业解决方案
 
 ---
 
 ## 🤝 参与贡献
 
-欢迎贡献！请查看 [CONTRIBUTING.md](CONTRIBUTING.md) 了解详情。
+我们欢迎所有形式的贡献！
 
-1. Fork 本仓库
-2. 创建特性分支 (`git checkout -b feature/amazing-feature`)
-3. 提交更改 (`git commit -m 'Add amazing feature'`)
-4. 推送到分支 (`git push origin feature/amazing-feature`)
-5. 创建 Pull Request
+- 🐛 报告 Bug
+- 💡 提出新功能
+- 📝 改进文档
+- 🔧 提交代码
+
+请查看 [CONTRIBUTING.md](./CONTRIBUTING.md) 了解详情。
 
 ---
 
 ## 📄 License
 
-MIT License - 详见 [LICENSE](LICENSE)
+MIT License - 详见 [LICENSE](./LICENSE)
 
 ---
 
 <p align="center">
-  <strong>⭐ 如果觉得有用，请给个 Star 支持一下！</strong>
+  <strong>⭐ 如果觉得有用，请给个 Star 支持一下！</strong><br>
+  <em>让我们一起构建下一代 Agent 互联网</em>
 </p>
