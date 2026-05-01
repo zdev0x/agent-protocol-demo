@@ -1,639 +1,451 @@
-# RFC-001: Agent 通讯协议 (Agent Communication Protocol)
+# RFC-001: Agent Communication Protocol (ACP) v0.1
 
-> 版本: 1.0.0-draft
+> 版本: 0.1.0-draft
 > 日期: 2026-05-01
 > 作者: zdev0x
 > 状态: 草案
 
 ---
 
-## 摘要
+## 1. 摘要
 
-本文档定义了 Agent-to-Agent 通讯协议（ACP），一个用于 AI Agent 之间发现、连接和协作的开放标准。协议参考 TCP/IP 和 HTTP 的设计思想，旨在建立下一代 Agent 互联网的基础设施。
+ACP (Agent Communication Protocol) 是一个轻量级 Agent 通信协议草案，目标是为个人开发者、中小团队和私有化 Agent 系统提供简单、可实现、低依赖的 Agent 注册、发现和协作规范。
 
----
-
-## 1. 引言
-
-### 1.1 背景
-
-当前 AI Agent 生态存在以下问题：
-
-1. **孤岛化**：各框架（LangChain、CrewAI、AutoGen）之间无法互通
-2. **缺乏标准**：Agent 间通讯格式自定义，无统一规范
-3. **发现困难**：没有成熟的 Agent 发现和注册机制
-4. **信任缺失**：Agent 间缺乏身份认证和能力验证
-
-### 1.2 设计目标
-
-- **开放性**：任何人都可以实现和部署
-- **互操作性**：不同框架的 Agent 可以直接通讯
-- **可扩展性**：支持未来新增功能和能力
-- **安全性**：内置身份认证和消息加密
-
-### 1.3 术语定义
-
-| 术语 | 定义 |
-|------|------|
-| Agent | 能够自主执行任务的 AI 实体 |
-| Agent Hub | Agent 注册和发现的中心服务 |
-| Agent URI | Agent 的唯一标识符 |
-| Capability | Agent 具备的能力描述 |
-| Task | Agent 间协作的具体任务 |
+**ACP 不是替代 A2A 或 MCP**，而是提供一个更容易理解、实现和二次开发的轻量协议。
 
 ---
 
-## 2. 架构
+## 2. 定位
 
-### 2.1 系统架构图
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                     Agent Hub (Registry)                    │
-│                                                             │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────┐ │
-│  │   注册服务   │  │  发现服务   │  │    能力匹配引擎     │ │
-│  │  Register   │  │   Discover  │  │  Capability Match   │ │
-│  └─────────────┘  └─────────────┘  └─────────────────────┘ │
-│                                                             │
-│  ┌─────────────────────────────────────────────────────┐   │
-│  │                   Agent 目录                         │   │
-│  │              (Agent Directory Store)                 │   │
-│  └─────────────────────────────────────────────────────┘   │
-└─────────────────────────────────────────────────────────────┘
-                            ↑
-           ┌────────────────┼────────────────┐
-           │                │                │
-           │                │                │
-   ┌───────▼───────┐ ┌─────▼───────┐ ┌───────▼───────┐
-   │   Agent A     │ │   Agent B   │ │   Agent C     │
-   │  (User)       │ │  (Service)  │ │  (Service)    │
-   │               │ │             │ │               │
-   │  URI:         │ │  URI:       │ │  URI:         │
-   │  agent://...  │ │  agent://...│ │  agent://...  │
-   │               │ │             │ │               │
-   │  Capabilities:│ │Capabilities:│ │Capabilities:  │
-   │  - user       │ │ - booking   │ │ - translation │
-   │               │ │ - payment   │ │               │
-   └───────────────┘ └─────────────┘ └───────────────┘
-```
-
-### 2.2 核心组件
-
-1. **Agent Hub** - 中心化的注册和发现服务
-2. **Agent** - 能够通讯的 AI 实体
-3. **Agent URI** - 全球唯一的 Agent 标识符
-4. **AgentMessage** - 标准化的消息格式
-
----
-
-## 3. Agent URI 规范
-
-### 3.1 格式定义
+### 2.1 ACP 是什么
 
 ```
-agent://{authority}/{agent-name}/{version}
-
-其中:
-- authority: 主机和端口，格式为 host:port 或 domain
-- agent-name: Agent 名称，小写字母、数字、连字符
-- version: API 版本，格式为 v{major}
-
-示例:
-agent://localhost:8765/alice/v1
-agent://hub.agent.org/bob/v1
-agent://api.openai.com/gpt-agent/v1
+ACP = Agent 的"HTTP"
 ```
 
-### 3.2 URI 组件说明
+就像 HTTP 让网页之间可以通讯，ACP 让 Agent 之间可以通讯。
 
-| 组件 | 必需 | 说明 |
+### 2.2 ACP 不是什么
+
+```
+❌ 不是 A2A 的替代品
+❌ 不是 MCP 的替代品
+❌ 不是全球 Agent 互联网标准
+❌ 不是企业级生产协议
+```
+
+### 2.3 适用场景
+
+```
+✅ 个人开发者学习 Agent 通讯
+✅ 私有化 Agent 系统内部通讯
+✅ 中小规模 Agent 网络
+✅ Agent 协议教学和研究
+✅ 快速原型验证
+```
+
+### 2.4 与现有协议的关系
+
+| 协议 | 定位 | 关系 |
 |------|------|------|
-| authority | 是 | Agent 所在的服务地址 |
-| agent-name | 是 | Agent 的唯一名称 |
-| version | 否 | API 版本，默认为 v1 |
+| **MCP** | LLM ↔ 工具/数据 | 互补，ACP 不涉及工具调用 |
+| **A2A** | Agent ↔ Agent 互操作 | ACP 是简化版/学习版 |
+| **ACP** | Agent ↔ Agent 通讯 | 轻量级，易实现 |
 
-### 3.3 特殊 URI
+---
+
+## 3. 核心设计
+
+### 3.1 设计原则
 
 ```
-agent://hub/                  # 默认 Agent Hub
-agent://broadcast/            # 广播地址
-agent://capability/{name}     # 按能力查询
+1. 简单性 - 最小化概念，易于理解
+2. 可实现 - 一个开发者能独立实现
+3. 低依赖 - 只需 WebSocket 或 HTTP
+4. 可扩展 - 核心精简，扩展可选
+5. 实用性 - 解决真实问题
+```
+
+### 3.2 架构
+
+```
+┌─────────────────────────────────────────┐
+│           Agent Registry               │
+│        (可选，支持去中心化)              │
+│                                         │
+│   register / discover / heartbeat       │
+└─────────────────────────────────────────┘
+                    ↑
+       ┌────────────┴────────────┐
+       │                         │
+┌──────▼──────┐           ┌──────▼──────┐
+│   Agent A   │           │   Agent B   │
+│             │           │             │
+│  send_task  │──────────→│  get_status │
+│  get_status │←──────────│  accept     │
+└─────────────┘           └─────────────┘
 ```
 
 ---
 
-## 4. Agent Hub 规范
+## 4. 核心规范 (v0.1)
 
-### 4.1 核心功能
+ACP v0.1 只定义 4 个核心动作：
 
-Agent Hub 提供以下核心服务：
+### 4.1 register - 注册
 
-#### 4.1.1 注册服务 (Register)
+Agent 向 Registry 注册自己。
 
-Agent 启动时向 Hub 注册自己的信息。
-
-**请求格式:**
+**请求:**
 ```json
 {
   "action": "register",
   "agent": {
-    "uri": "agent://localhost:8765/alice/v1",
-    "name": "alice",
-    "capabilities": ["scheduling", "negotiation"],
-    "description": "个人助理，擅长日程安排",
-    "endpoint": "ws://localhost:8765",
-    "metadata": {
-      "version": "1.0.0",
-      "author": "zdev0x"
+    "agent_id": "booking-agent-001",
+    "name": "Booking Agent",
+    "description": "处理酒店和机票预订",
+    "version": "1.0.0",
+    "endpoint": "https://example.com/acp/agent",
+    "capabilities": [
+      {
+        "name": "booking.hotel",
+        "description": "预订酒店"
+      },
+      {
+        "name": "booking.flight", 
+        "description": "预订机票"
+      }
+    ],
+    "auth": {
+      "type": "bearer"
     }
   }
 }
 ```
 
-**响应格式:**
+**响应:**
 ```json
 {
   "status": "ok",
-  "message": "已注册: agent://localhost:8765/alice/v1",
-  "agent_id": "alice-8765"
+  "agent_id": "booking-agent-001",
+  "registered_at": "2026-05-01T15:30:00Z"
 }
 ```
 
-#### 4.1.2 发现服务 (Discover)
+### 4.2 discover - 发现
 
 根据能力搜索 Agent。
 
-**请求格式:**
+**请求:**
 ```json
 {
   "action": "discover",
   "query": {
-    "capabilities": ["booking"],
-    "min_reputation": 0.8,
-    "max_latency": 1000,
+    "capability": "booking.hotel",
     "limit": 10
   }
 }
 ```
 
-**响应格式:**
+**响应:**
 ```json
 {
   "status": "ok",
   "agents": [
     {
-      "uri": "agent://localhost:8766/bob/v1",
-      "name": "bob",
-      "capabilities": ["booking", "scheduling"],
-      "reputation": 0.95,
-      "latency": 200,
-      "endpoint": "ws://localhost:8766"
+      "agent_id": "booking-agent-001",
+      "name": "Booking Agent",
+      "endpoint": "https://example.com/acp/agent",
+      "capabilities": ["booking.hotel", "booking.flight"],
+      "auth": {
+        "type": "bearer"
+      }
     }
-  ],
-  "total": 1
+  ]
 }
 ```
 
-#### 4.1.3 心跳服务 (Heartbeat)
+### 4.3 send_task - 发送任务
 
-Agent 定期发送心跳，保持注册状态。
+向 Agent 发送任务。
 
-**请求格式:**
+**请求:**
 ```json
 {
-  "action": "heartbeat",
-  "agent_uri": "agent://localhost:8765/alice/v1"
+  "action": "send_task",
+  "task": {
+    "task_id": "task-20260501-001",
+    "type": "booking.hotel",
+    "input": {
+      "city": "上海",
+      "check_in": "2026-05-15",
+      "check_out": "2026-05-17",
+      "guests": 2
+    },
+    "metadata": {
+      "requester": "user-agent-001",
+      "timeout": 300
+    }
+  }
 }
 ```
 
-**响应格式:**
+**响应:**
 ```json
 {
   "status": "ok",
-  "ttl": 300
+  "task_id": "task-20260501-001",
+  "accepted": true
 }
 ```
 
-#### 4.1.4 注销服务 (Unregister)
+### 4.4 get_status - 查询状态
 
-Agent 停止时注销。
+查询任务执行状态。
 
-**请求格式:**
+**请求:**
 ```json
 {
-  "action": "unregister",
-  "agent_uri": "agent://localhost:8765/alice/v1"
+  "action": "get_status",
+  "task_id": "task-20260501-001"
 }
 ```
 
----
-
-## 5. AgentMessage 规范
-
-### 5.1 消息格式
-
+**响应:**
 ```json
 {
-  "id": "msg-a1b2c3d4",
-  "version": "1.0",
-  "type": "request|response|notification|error",
-  "sender": {
-    "uri": "agent://localhost:8765/alice/v1",
-    "name": "alice"
-  },
-  "receiver": {
-    "uri": "agent://localhost:8766/bob/v1",
-    "name": "bob"
-  },
-  "payload": {
-    "intent": "book_meeting",
-    "data": {
-      "proposed_time": "2026-05-02T14:00:00+08:00",
-      "location": "上海"
-    }
-  },
-  "metadata": {
-    "timestamp": "2026-05-01T15:30:00Z",
-    "ttl": 300,
-    "priority": "normal",
-    "reply_to": null,
-    "conversation_id": "conv-xyz789"
-  }
-}
-```
-
-### 5.2 消息类型
-
-| 类型 | 说明 |
-|------|------|
-| `request` | 请求消息，期望收到响应 |
-| `response` | 响应消息，对应某个请求 |
-| `notification` | 通知消息，不需要响应 |
-| `error` | 错误消息 |
-
-### 5.3 常用 Intent
-
-#### 协作类
-
-| Intent | 说明 |
-|--------|------|
-| `collaborate.request` | 请求协作 |
-| `collaborate.accept` | 接受协作 |
-| `collaborate.reject` | 拒绝协作 |
-| `collaborate.complete` | 协作完成 |
-
-#### 任务类
-
-| Intent | 说明 |
-|--------|------|
-| `task.assign` | 分配任务 |
-| `task.update` | 更新任务状态 |
-| `task.complete` | 任务完成 |
-| `task.cancel` | 取消任务 |
-
-#### 支付类
-
-| Intent | 说明 |
-|--------|------|
-| `payment.request` | 请求支付 |
-| `payment.confirm` | 确认支付 |
-| `payment.refund` | 退款 |
-
----
-
-## 6. 通讯协议
-
-### 6.1 传输层
-
-支持以下传输协议：
-
-| 协议 | 用途 | 优先级 |
-|------|------|--------|
-| WebSocket | 实时双向通讯 | 推荐 |
-| HTTP/2 | 请求响应 | 备选 |
-| gRPC | 高性能通讯 | 可选 |
-
-### 6.2 连接建立
-
-#### 6.2.1 握手流程
-
-```
-Agent A                     Agent B
-   │                           │
-   │──── Connect ─────────────→│
-   │     (URI, Capabilities)   │
-   │                           │
-   │←──── Accept ──────────────│
-   │     (URI, Capabilities)   │
-   │                           │
-   │──── Auth ────────────────→│
-   │     (Signature)           │
-   │                           │
-   │←──── Auth OK ─────────────│
-   │                           │
-   │       连接建立完成         │
-```
-
-#### 6.2.2 认证方式
-
-| 方式 | 说明 | 优先级 |
-|------|------|--------|
-| Token | API Token 认证 | 推荐 |
-| Signature | 消息签名认证 | 可选 |
-| TLS Client Cert | 客户端证书 | 可选 |
-
-### 6.3 消息可靠性
-
-#### 6.3.1 确认机制
-
-```
-发送方                    接收方
-   │                        │
-   │─── Message ────────────→│
-   │                        │
-   │←─── Ack (msg_id) ──────│
-   │                        │
-   │    (超时未收到则重试)    │
-```
-
-#### 6.3.2 重试策略
-
-| 参数 | 默认值 | 说明 |
-|------|--------|------|
-| max_retries | 3 | 最大重试次数 |
-| retry_interval | 1000ms | 重试间隔 |
-| backoff_multiplier | 2 | 退避倍数 |
-
-### 6.4 流量控制
-
-| 参数 | 默认值 | 说明 |
-|------|--------|------|
-| max_concurrent | 10 | 最大并发请求数 |
-| rate_limit | 100/s | 每秒最大请求数 |
-| message_size_limit | 1MB | 单条消息最大大小 |
-
----
-
-## 7. 能力描述规范
-
-### 7.1 能力格式
-
-```json
-{
-  "name": "booking",
-  "version": "1.0",
-  "description": "预订服务",
-  "parameters": {
-    "type": "booking|cancellation|modification",
-    "service": "flight|hotel|restaurant|ticket"
-  },
-  "output": {
-    "confirmation_code": "string",
-    "status": "confirmed|pending|failed"
-  }
-}
-```
-
-### 7.2 内置能力类型
-
-| 能力 | 说明 |
-|------|------|
-| `booking` | 预订服务 |
-| `payment` | 支付服务 |
-| `translation` | 翻译服务 |
-| `search` | 搜索服务 |
-| `computation` | 计算服务 |
-| `storage` | 存储服务 |
-
-### 7.3 自定义能力
-
-Agent 可以注册自定义能力，只需遵循能力格式规范。
-
----
-
-## 8. 安全规范
-
-### 8.1 身份验证
-
-#### 8.1.1 Agent 身份
-
-每个 Agent 必须有唯一的身份标识：
-
-```json
-{
-  "identity": {
-    "uri": "agent://localhost:8765/alice/v1",
-    "public_key": "-----BEGIN PUBLIC KEY-----\n...",
-    "signature_algorithm": "RSA-SHA256"
-  }
-}
-```
-
-#### 8.1.2 消息签名
-
-每条消息必须包含签名：
-
-```json
-{
-  "signature": {
-    "algorithm": "RSA-SHA256",
-    "value": "base64_encoded_signature",
-    "signed_fields": ["id", "sender", "receiver", "payload", "timestamp"]
-  }
-}
-```
-
-### 8.2 消息加密
-
-支持以下加密方式：
-
-| 方式 | 说明 | 优先级 |
-|------|------|--------|
-| TLS 1.3 | 传输层加密 | 必需 |
-| E2E | 端到端加密 | 推荐 |
-| Payload | 消息体加密 | 可选 |
-
-### 8.3 访问控制
-
-Agent Hub 支持以下访问控制策略：
-
-```json
-{
-  "access_control": {
-    "allowed_agents": ["agent://trusted/*"],
-    "blocked_agents": [],
-    "capability_whitelist": ["booking", "payment"],
-    "rate_limits": {
-      "per_agent": 100,
-      "per_minute": 1000
-    }
-  }
-}
-```
-
----
-
-## 9. 错误处理
-
-### 9.1 错误码
-
-| 错误码 | 说明 |
-|--------|------|
-| 400 | 请求格式错误 |
-| 401 | 未认证 |
-| 403 | 无权限 |
-| 404 | Agent 不存在 |
-| 408 | 请求超时 |
-| 429 | 请求过多 |
-| 500 | 服务器错误 |
-
-### 9.2 错误消息格式
-
-```json
-{
-  "type": "error",
-  "error": {
-    "code": 404,
-    "message": "Agent not found",
-    "details": {
-      "agent_uri": "agent://localhost:8766/bob/v1"
-    }
-  }
-}
-```
-
----
-
-## 10. 扩展机制
-
-### 10.1 协议扩展
-
-通过 `extensions` 字段支持协议扩展：
-
-```json
-{
-  "extensions": {
-    "payment": {
-      "version": "1.0",
-      "enabled": true
+  "status": "ok",
+  "task": {
+    "task_id": "task-20260501-001",
+    "state": "completed",
+    "result": {
+      "hotel": "上海外滩华尔道夫",
+      "room_type": "豪华江景房",
+      "price": 2800,
+      "currency": "CNY",
+      "confirmation": "WAL-20260515-001"
     },
-    "encryption": {
-      "algorithm": "AES-256-GCM"
-    }
+    "created_at": "2026-05-01T15:30:00Z",
+    "completed_at": "2026-05-01T15:30:05Z"
   }
 }
 ```
 
-### 10.2 能力扩展
+---
 
-Agent 可以动态注册新能力，无需修改协议。
+## 5. 任务状态机
+
+### 5.1 状态定义
+
+```
+created → accepted → running → completed
+                    ↘ failed
+                    ↘ cancelled
+                    ↘ expired
+```
+
+| 状态 | 说明 |
+|------|------|
+| `created` | 任务已创建，等待 Agent 接收 |
+| `accepted` | Agent 已接受任务 |
+| `running` | 任务执行中 |
+| `completed` | 任务完成 |
+| `failed` | 任务失败 |
+| `cancelled` | 任务取消 |
+| `expired` | 任务超时 |
+
+### 5.2 状态转换规则
+
+```
+created → accepted     (Agent 接受)
+created → failed       (Agent 拒绝)
+accepted → running     (开始执行)
+accepted → cancelled   (用户取消)
+running → completed    (执行完成)
+running → failed       (执行失败)
+running → cancelled    (用户取消)
+```
 
 ---
 
-## 11. 实现参考
+## 6. 传输层
 
-### 11.1 Python SDK
+### 6.1 支持的传输协议
+
+| 协议 | 优先级 | 说明 |
+|------|--------|------|
+| HTTP + JSON | 推荐 | 简单，兼容性好 |
+| WebSocket | 可选 | 实时双向通讯 |
+
+### 6.2 端点规范
+
+```
+Registry 端点:
+  POST /acp/register      # 注册
+  POST /acp/discover      # 发现
+  POST /acp/heartbeat     # 心跳
+
+Agent 端点:
+  POST /acp/task          # 发送任务
+  GET  /acp/task/{id}     # 查询状态
+  POST /acp/task/{id}/cancel  # 取消任务
+```
+
+---
+
+## 7. 错误处理
+
+### 7.1 错误格式
+
+```json
+{
+  "status": "error",
+  "error": {
+    "code": "AGENT_NOT_FOUND",
+    "message": "Agent not found"
+  }
+}
+```
+
+### 7.2 错误码
+
+| 错误码 | 说明 | 可重试 |
+|--------|------|--------|
+| `AGENT_NOT_FOUND` | Agent 不存在 | 否 |
+| `AGENT_OFFLINE` | Agent 离线 | 是 |
+| `AGENT_BUSY` | Agent 忙碌 | 是 |
+| `TASK_INVALID` | 任务格式错误 | 否 |
+| `TASK_REJECTED` | 任务被拒绝 | 否 |
+| `TASK_TIMEOUT` | 任务超时 | 是 |
+| `TASK_FAILED` | 任务执行失败 | 视情况 |
+| `UNAUTHORIZED` | 未授权 | 否 |
+| `RATE_LIMITED` | 请求过多 | 是 |
+
+---
+
+## 8. Agent 身份
+
+### 8.1 Agent ID
+
+```
+格式: {agent_name}@{domain}
+
+示例:
+  booking-agent@example.com
+  coder-agent@company.local
+  translator-agent@team.org
+```
+
+### 8.2 去中心化发现
+
+除了 Registry，还支持 `.well-known/agent.json`：
+
+```
+GET https://example.com/.well-known/agent.json
+
+响应:
+{
+  "agent_id": "booking-agent@example.com",
+  "name": "Booking Agent",
+  "endpoint": "https://example.com/acp/agent",
+  "capabilities": [...],
+  "auth": {
+    "type": "bearer"
+  }
+}
+```
+
+---
+
+## 9. 扩展机制
+
+ACP v0.1 只定义核心协议，其他功能通过扩展实现：
+
+| 扩展 | 说明 | 状态 |
+|------|------|------|
+| `acp.payment` | 支付功能 | 计划中 |
+| `acp.streaming` | 流式输出 | 计划中 |
+| `acp.files` | 文件传输 | 计划中 |
+| `acp.memory` | 记忆共享 | 计划中 |
+| `acp.auth` | 高级认证 | 计划中 |
+
+---
+
+## 10. 示例
+
+### 10.1 完整流程
+
+```
+1. Agent 注册
+   Agent A → Registry: register
+   Registry → Agent A: ok
+
+2. 发现 Agent
+   Agent B → Registry: discover (capability: booking)
+   Registry → Agent B: [Agent A]
+
+3. 发送任务
+   Agent B → Agent A: send_task (book hotel)
+   Agent A → Agent B: ok (accepted)
+
+4. 查询状态
+   Agent B → Agent A: get_status (task_id)
+   Agent A → Agent B: completed (result)
+
+5. 任务完成
+```
+
+### 10.2 Python 示例
 
 ```python
-from agent_protocol import Agent, Hub
+import requests
 
-# 连接到 Hub
-hub = Hub("ws://hub.agent.org")
+# 注册
+requests.post("http://registry:8767/acp/register", json={
+    "action": "register",
+    "agent": {
+        "agent_id": "booking-agent@example.com",
+        "name": "Booking Agent",
+        "endpoint": "http://localhost:8080/acp/agent",
+        "capabilities": [{"name": "booking.hotel"}]
+    }
+})
 
-# 创建 Agent
-agent = Agent(
-    name="alice",
-    capabilities=["booking", "scheduling"]
-)
+# 发送任务
+response = requests.post("http://localhost:8080/acp/task", json={
+    "action": "send_task",
+    "task": {
+        "task_id": "task-001",
+        "type": "booking.hotel",
+        "input": {"city": "上海", "check_in": "2026-05-15"}
+    }
+})
 
-# 注册到 Hub
-await hub.register(agent)
-
-# 发现其他 Agent
-agents = await hub.discover(capability="payment")
-
-# 发送消息
-response = await agent.send_to(
-    target="agent://localhost:8766/bob/v1",
-    intent="book_meeting",
-    data={"time": "2026-05-02T14:00:00Z"}
-)
-```
-
-### 11.2 JavaScript SDK
-
-```javascript
-import { Agent, Hub } from 'agent-protocol';
-
-// 连接到 Hub
-const hub = new Hub('ws://hub.agent.org');
-
-// 创建 Agent
-const agent = new Agent({
-  name: 'alice',
-  capabilities: ['booking', 'scheduling']
-});
-
-// 注册到 Hub
-await hub.register(agent);
-
-// 发现其他 Agent
-const agents = await hub.discover({ capability: 'payment' });
-
-// 发送消息
-const response = await agent.sendTo({
-  target: 'agent://localhost:8766/bob/v1',
-  intent: 'book_meeting',
-  data: { time: '2026-05-02T14:00:00Z' }
-});
+# 查询状态
+status = requests.get("http://localhost:8080/acp/task/task-001")
+print(status.json())
 ```
 
 ---
 
-## 12. 未来工作
-
-### 12.1 短期计划
-
-- [ ] 完善 Agent Hub 实现
-- [ ] 添加消息加密支持
-- [ ] 实现分布式 Registry
-- [ ] 编写完整测试套件
-
-### 12.2 中期计划
-
-- [ ] 发布 Python/JS SDK
-- [ ] 与 LangChain/CrewAI 集成
-- [ ] 建立 Agent Marketplace
-- [ ] 支持 Agent 支付
-
-### 12.3 长期愿景
-
-- [ ] 成为 Agent 通讯的行业标准
-- [ ] 建立全球 Agent 互联网
-- [ ] 支持万亿级 Agent 互联
-
----
-
-## 13. 变更记录
+## 11. 变更记录
 
 | 版本 | 日期 | 变更说明 |
 |------|------|----------|
-| 1.0.0-draft | 2026-05-01 | 初始草案 |
+| 0.1.0-draft | 2026-05-01 | 初始草案，4 个核心动作 |
 
 ---
 
-## 14. 参考资料
+## 12. 参考资料
 
-- [TCP/IP 协议规范](https://tools.ietf.org/html/rfc793)
-- [HTTP/2 协议规范](https://tools.ietf.org/html/rfc7540)
-- [WebSocket 协议规范](https://tools.ietf.org/html/rfc6455)
-- [Google A2A 协议](https://github.com/a2aproject/A2A)
-- [MCP 协议](https://modelcontextprotocol.io)
+- [A2A Protocol](https://a2a-protocol.org/) - Agent-to-Agent 通信标准
+- [MCP](https://modelcontextprotocol.io/) - 模型上下文协议
+- [HTTP/1.1](https://tools.ietf.org/html/rfc2616) - 超文本传输协议
+- [JSON-RPC 2.0](https://www.jsonrpc.org/specification) - JSON 远程过程调用
 
 ---
 
 <p align="center">
-  <strong>📝 RFC-001: Agent 通讯协议 v1.0.0-draft</strong><br>
-  <em>让我们一起构建下一代 Agent 互联网</em>
+  <strong>📝 RFC-001: ACP v0.1.0-draft</strong><br>
+  <em>轻量级 Agent 通信协议</em>
 </p>
