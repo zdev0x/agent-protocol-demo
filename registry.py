@@ -36,7 +36,7 @@ class AgentRegistry:
         print(f"   地址: ws://{self.host}:{self.port}")
         print(f"   等待 Agent 注册...\n")
     
-    async def _handle_connection(self, websocket, path):
+    async def _handle_connection(self, websocket):
         """处理请求"""
         try:
             async for raw in websocket:

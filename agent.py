@@ -88,8 +88,9 @@ class Agent:
         print(f"   能力: {self.capabilities}")
         print(f"   等待连接...\n")
     
-    async def _handle_connection(self, websocket, path):
+    async def _handle_connection(self, websocket):
         """处理 WebSocket 连接"""
+        import websockets as ws_lib
         try:
             async for raw in websocket:
                 data = json.loads(raw)
@@ -99,9 +100,18 @@ class Agent:
                 if self._handler:
                     response = await self._handler(msg)
                     if response:
-                        await websocket.send(json.dumps(response.to_dict()))
-        except websockets.exceptions.ConnectionClosed:
+                        # 包装成标准消息格式回复
+                        resp_msg = AgentMessage(
+                            sender=msg.receiver,
+                            receiver=msg.sender,
+                            msg_type="response",
+                            payload=response if isinstance(response, dict) else {"result": response}
+                        )
+                        await websocket.send(json.dumps(resp_msg.to_dict()))
+        except ws_lib.exceptions.ConnectionClosed:
             pass
+        except Exception as e:
+            print(f"   ⚠️ 处理消息出错: {e}")
     
     async def send_to(self, target_uri: str, payload: dict, msg_type: str = "request") -> dict:
         """
@@ -115,7 +125,8 @@ class Agent:
         
         # 解析 URI: agent://host:port/name
         target = target_uri.replace("agent://", "")
-        host, port, name = target.split(":")
+        host_port, name = target.rsplit("/", 1)
+        host, port = host_port.split(":")
         port = int(port)
         
         try:

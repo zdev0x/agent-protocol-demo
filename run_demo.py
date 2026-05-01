@@ -26,14 +26,14 @@ async def main():
     print("="*60)
     print()
     
-    # 1. 启动 Registry
+    # 1. 启动 Registry (端口 8767)
     from registry import AgentRegistry
-    registry = AgentRegistry()
+    registry = AgentRegistry(port=8767)
     await registry.start()
     
     await asyncio.sleep(1)
     
-    # 2. 启动 Agent B（响应方）
+    # 2. 启动 Agent B（响应方，端口 8766）
     from agent import Agent
     
     async def handle_request(msg):
@@ -77,7 +77,7 @@ async def main():
     
     # 注册到 Registry
     import websockets
-    async with websockets.connect("ws://localhost:8766") as ws:
+    async with websockets.connect("ws://localhost:8767") as ws:
         await ws.send(json.dumps({
             "action": "register",
             "uri": agent_b.uri,
@@ -97,7 +97,7 @@ async def main():
     )
     
     # 注册到 Registry
-    async with websockets.connect("ws://localhost:8766") as ws:
+    async with websockets.connect("ws://localhost:8767") as ws:
         await ws.send(json.dumps({
             "action": "register",
             "uri": agent_a.uri,
@@ -115,7 +115,7 @@ async def main():
     print("="*60)
     
     # 找到 Bob
-    async with websockets.connect("ws://localhost:8766") as ws:
+    async with websockets.connect("ws://localhost:8767") as ws:
         await ws.send(json.dumps({
             "action": "find",
             "capability": "booking"
