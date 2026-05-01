@@ -160,8 +160,8 @@
 
 ```bash
 # 克隆仓库
-git clone https://github.com/zdev0x/agent-hub.git
-cd agent-hub
+git clone https://github.com/zdev0x/agent-protocol-demo.git
+cd agent-protocol-demo
 
 # 安装依赖
 python3 -m venv venv
